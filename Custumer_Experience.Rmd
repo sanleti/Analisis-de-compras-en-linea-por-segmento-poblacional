@@ -1,0 +1,126 @@
+---
+title: "Análisis de Compras Online por Segmento Poblacional"
+author: "Leticia Muñoz"
+date: "2025-05-21"
+output: 
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_depth: 2
+    highlight: tango
+    css: styles.css
+---
+# Acerca del Proyecto
+
+**Fuente del Dataset:** Kaggle
+
+**Autor del Dataset:** Ziya07
+
+**Licencia:** Public Domain (CC0)
+
+**Objetivo del análisis:** Identificar qué segmento de la población (en función a su edad y género) mira más productos a la par que compra menos, para así llevar a cabo una campaña de marketing que se dirija a ese segmento de la población en específico. 
+Pregunta: ¿Qué segmento de la población mira más productos, pero compra menos?
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## 1. Cargar los paquetes necesarios
+
+```{r}
+
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+## 2. Cargar el Dataset en un Data Frame
+
+```{r}
+Clientes <- read.csv("https://raw.githubusercontent.com/sanleti/Analisis-de-compras-en-linea-por-segmento-poblacional/main/customer_experience_data.csv")
+```
+
+## 3. Visualizar la estructura general de los datos
+
+```{r}
+head(Clientes)
+str(Clientes)
+summary(Clientes)
+glimpse(Clientes)
+```
+
+De acuerdo al comando `summary()`, podemos observar que el número visto de productos es muy alto (llega hasta 49), pero la mediana de compra es de tan solo 11 productos por usuario. Esto sugiere que hay muchos clientes que navegan mucho y compran poco. *El objetivo es identificar quiénes son ese grupo de clientes.*
+
+## 4. Seleccionar columnas clave
+
+```{r}
+Clientes_op <- Clientes %>%
+  select(Age, Gender, Products_Purchased, Products_Viewed)
+```
+
+## 5. Generar una variable que relacione vistas a compras
+
+```{r}
+Clientes_op <- Clientes_op %>%
+  mutate(View_to_Purchase_Ratio = Products_Viewed / Products_Purchased)
+```
+
+Un valor alto del ratio indica que el cliente **mira mucho y compra poco**.
+
+## 6. Agrupar por edad y género
+
+```{r}
+datos_resumen <- Clientes_op %>%
+  mutate(Edad_Grupo = cut(Age,
+                          breaks = c(18, 30, 40, 50, 60, 70),
+                          labels = c("18-30", "31-40", "41-50", "51-60", "61-70"))) %>%
+  group_by(Edad_Grupo, Gender) %>%
+  summarise(Average_Ratio = mean(View_to_Purchase_Ratio, na.rm = TRUE)) %>%
+  filter(!is.na(Edad_Grupo))
+
+datos_resumen <- datos_resumen %>%
+  mutate(Average_Ratio = round(Average_Ratio, 2))
+```
+
+## 7. Crear un Boxplot
+
+```{r}
+ggplot(datos_resumen, aes(x = Edad_Grupo, y = Average_Ratio)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(
+    title = "Distribución del Ratio Vista/Compra por Grupo de Edad",
+    x = "Grupo de Edad",
+    y = "Ratio Vista a Compra"
+  ) +
+  theme_minimal()
+```
+
+De acuerdo con este boxplot, los grupos que tienen las medianas más altas son el de **18-30 años** y el de **51-60 años**, lo que indica que **miran muchos productos pero compran poco**. Por el contrario, el grupo que más compra en relación con lo que ve es el de **31-40 años**. Esto sugiere enfocar estrategias de marketing en los primeros dos grupos para mejorar su conversión.
+
+## 8. Crear gráfico de puntos facetado por género
+
+```{r}
+ggplot(datos_resumen, aes(x = Edad_Grupo, y = Average_Ratio, color = Edad_Grupo)) +
+  geom_point(size = 4) +
+  facet_wrap(~ Gender) +
+  labs(
+    title = "Comparación de Ratio de Vistas vs Compras por Edad y Género",
+    x = "Grupo de Edad",
+    y = "Ratio Promedio"
+  ) +
+  theme_bw()
+```
+
+Este gráfico muestra que:
+
+- Las **mujeres entre 51-60 años** y los **hombres de 18-30 años** son quienes más miran y menos compran.
+- Las **mujeres entre 31-40 años** tienen un bajo ratio, es decir, compran más en proporción a lo que miran.
+
+---
+
+## 9. Conclusiones
+Se han obtenido los datos que responden a la pregunta de cuál es el segmento de clientes que más visualiza productos, pero que compra menos. Con esos datos, se pueden dirigir los esfuerzos de marketing al segmento específico, sin caer en el error o en el azar.  
+
+Otro análisis que valdría la pena realizar, sería el nivel de satisfacción de los clientes que más productos compran. De esa manera, podríamos llevar a cabo inferencias con respecto a qué tasa de clientes permanecerán leales a la compañía debido a que su índice de satisfacción es alto, o de lo contrario, inferencias con respecto al riesgo de que un cliente decida ya no comprar más.
+
+En los negocios, tanto la captación de clientes como la retención son importantes. Un negocio próspero no debe descuidar ninguno de los dos indicadores.
